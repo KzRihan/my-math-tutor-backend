@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment files (except example)
+.env
+.env.local
+.env.*.local
+
+my-math-tutor-web
+/topic-genrations/
+
+agent-service
+scripts
+postman
+uploads
+
+.env
+.env.local
+.env.*.local
+
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+package-lock.json
+
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Coverage
+coverage/
+
+# Temp files
+tmp/
+temp/
