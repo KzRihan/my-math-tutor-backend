@@ -8,9 +8,23 @@
 import { z } from 'zod';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
 // Load environment variables from .env file
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+// Try common locations to avoid relying on the current working directory.
+const envCandidates = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(__dirname, '..', '..', '.env'),
+  path.resolve(__dirname, '..', '..', '..', '.env'),
+];
+
+const envPath = envCandidates.find((candidate) => fs.existsSync(candidate));
+
+if (envPath) {
+  dotenv.config({ path: envPath });
+} else {
+  dotenv.config();
+}
 
 /**
  * Environment configuration schema
@@ -98,7 +112,7 @@ export const config = {
   /** Application settings */
   app: {
     nodeEnv: env.NODE_ENV,
-    port: 8000,
+    port: env.PORT,
     apiVersion: env.API_VERSION,
     isDevelopment: env.NODE_ENV === 'development',
     isProduction: env.NODE_ENV === 'production',
