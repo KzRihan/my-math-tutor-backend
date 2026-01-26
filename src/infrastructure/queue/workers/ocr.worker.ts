@@ -15,6 +15,19 @@ import { createChildLogger } from '@utils/logger';
 
 const workerLogger = createChildLogger('ocr-worker');
 
+const buildStrategySequence = (primary?: OcrJobData['strategy']): OcrJobData['strategy'][] => {
+  const fallbacks: OcrJobData['strategy'][] = ['formula_only', 'mixed', 'pix2tex_only', 'text_only'];
+  const initial = primary || 'mixed';
+  return [initial, ...fallbacks].filter((value, index, array) => array.indexOf(value) === index);
+};
+
+const scoreResult = (result: OcrJobResult): number => {
+  const quality = (result.qualityScore || 0) * 100;
+  const textLength = Math.min((result.layoutMarkdown || '').length, 400) * 0.1;
+  const blocksScore = (result.blocks?.length || 0) * 5;
+  const warningsPenalty = (result.warnings?.length || 0) * 4;
+  return quality + textLength + blocksScore - warningsPenalty;
+};
 
 /** Worker instance */
 let ocrWorker: Worker<OcrJobData, OcrJobResult, OcrJobType> | null = null;
@@ -37,130 +50,159 @@ const processOcr: Processor<OcrJobData, OcrJobResult, OcrJobType> = async (
   try {
     // Stage 1: Job started - 10%
     await job.updateProgress(10);
-    console.log(`📊 [OCR PROGRESS] Job ${job.id}: 10% - Starting job processing`);
+    console.log(`[OCR PROGRESS] Job ${job.id}: 10% - Starting job processing`);
 
     // Stage 2: Decoding image - 20%
     await job.updateProgress(20);
-    console.log(`📊 [OCR PROGRESS] Job ${job.id}: 20% - Decoding base64 image`);
+    console.log(`[OCR PROGRESS] Job ${job.id}: 20% - Decoding base64 image`);
     const fileBuffer = Buffer.from(data.fileBuffer, 'base64');
 
     // Stage 3: Preparing FormData - 30%
     await job.updateProgress(30);
-    console.log(`📊 [OCR PROGRESS] Job ${job.id}: 30% - Preparing form data`);
-    const formData = new FormData();
-    formData.append('file', fileBuffer, {
-      filename: data.fileName,
-      contentType: data.fileMimeType,
-    });
+    console.log(`[OCR PROGRESS] Job ${job.id}: 30% - Preparing form data`);
 
-    // Stage 4: Ready to call API - 40%
-    await job.updateProgress(40);
-    console.log(`📊 [OCR PROGRESS] Job ${job.id}: 40% - Connecting to OCR service`);
-    const url = `${config.ocr.apiUrl}?strategy=${encodeURIComponent(data.strategy)}&language=${encodeURIComponent(data.language)}`;
+    const callOcr = async (strategy: OcrJobData['strategy']): Promise<OcrJobResult> => {
+      const formData = new FormData();
+      formData.append('file', fileBuffer, {
+        filename: data.fileName,
+        contentType: data.fileMimeType,
+      });
 
-    console.log('\n' + '='.repeat(60));
-    console.log(`🚀 [OCR REQUEST START] Job ${job.id}`);
-    console.log(`📍 URL: ${url}`);
-    console.log(`📁 File: ${data.fileName} (${data.fileMimeType})`);
-    console.log(`⚙️  Strategy: ${data.strategy}, Language: ${data.language}`);
-    console.log('='.repeat(60) + '\n');
+      // Stage 4: Ready to call API - 40%
+      await job.updateProgress(40);
+      console.log(`[OCR PROGRESS] Job ${job.id}: 40% - Connecting to OCR service`);
+      const url = `${config.ocr.apiUrl}?strategy=${encodeURIComponent(strategy)}&language=${encodeURIComponent(data.language)}`;
 
-    workerLogger.debug(`Calling OCR API: ${url}`);
+      console.log('\n' + '='.repeat(60));
+      console.log(`[OCR REQUEST START] Job ${job.id}`);
+      console.log(`URL: ${url}`);
+      console.log(`File: ${data.fileName} (${data.fileMimeType})`);
+      console.log(`Strategy: ${strategy}, Language: ${data.language}`);
+      console.log('='.repeat(60) + '\n');
 
-    // Stage 5: Calling OCR API - 50%
-    await job.updateProgress(50);
-    console.log(`📊 [OCR PROGRESS] Job ${job.id}: 50% - Sending image to OCR service`);
+      workerLogger.debug(`Calling OCR API: ${url}`);
 
-    const response = await axios.post<any>(url, formData, {
-      headers: {
-        ...formData.getHeaders(),
-      },
-      timeout: 60000,
-      maxContentLength: Infinity,
-      maxBodyLength: Infinity,
-    });
+      // Stage 5: Calling OCR API - 50%
+      await job.updateProgress(50);
+      console.log(`[OCR PROGRESS] Job ${job.id}: 50% - Sending image to OCR service`);
 
-    // Stage 6: Response received - 60%
-    await job.updateProgress(60);
+      const response = await axios.post<any>(url, formData, {
+        headers: {
+          ...formData.getHeaders(),
+        },
+        timeout: 60000,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      });
 
-    console.log('\n' + '='.repeat(60));
-    console.log(`📥 [OCR RESPONSE RECEIVED] Job ${job.id}`);
-    console.log(`✅ Status: ${response.status}`);
-    console.log('='.repeat(60) + '\n');
+      // Stage 6: Response received - 60%
+      await job.updateProgress(60);
 
-    const rawData = response.data;
-    console.log(`🔍 [OCR API RAW RESPONSE] Job ${job.id}:`, JSON.stringify(rawData, null, 2));
+      console.log('\n' + '='.repeat(60));
+      console.log(`[OCR RESPONSE RECEIVED] Job ${job.id}`);
+      console.log(`Status: ${response.status}`);
+      console.log('='.repeat(60) + '\n');
 
+      const rawData = response.data;
+      console.log(`[OCR API RAW RESPONSE] Job ${job.id}:`, JSON.stringify(rawData, null, 2));
 
-    // Robust extraction: Check if the response is nested or at top level
-    const apiResult = rawData.data || rawData.result || rawData.res || rawData;
+      // Robust extraction: Check if the response is nested or at top level
+      const apiResult = rawData.data || rawData.result || rawData.res || rawData;
 
-    // Stage 7: Validating response - 70%
-    await job.updateProgress(70);
-    console.log(`📊 [OCR PROGRESS] Job ${job.id}: 70% - Validating OCR response`);
+      // Stage 7: Validating response - 70%
+      await job.updateProgress(70);
+      console.log(`[OCR PROGRESS] Job ${job.id}: 70% - Validating OCR response`);
 
-    // lenient success check: true if success property is true in either wrapper or nested object,
-    // or if we have results even without a success flag
-    const isSuccess = rawData.success === true ||
-      apiResult.success === true ||
-      (apiResult.blocks || apiResult.content_blocks || apiResult.layout_markdown || apiResult.latex);
+      // lenient success check: true if success property is true in either wrapper or nested object,
+      // or if we have results even without a success flag
+      const isSuccess = rawData.success === true ||
+        apiResult.success === true ||
+        (apiResult.blocks || apiResult.content_blocks || apiResult.layout_markdown || apiResult.latex);
 
-    if (!isSuccess && (rawData.error || apiResult.error)) {
-      throw new Error(apiResult.error || rawData.error || 'OCR processing failed');
-    }
+      if (!isSuccess && (rawData.error || apiResult.error)) {
+        throw new Error(apiResult.error || rawData.error || 'OCR processing failed');
+      }
 
-    // Stage 8: Transforming result - 80%
-    await job.updateProgress(80);
-    console.log(`📊 [OCR PROGRESS] Job ${job.id}: 80% - Transforming results`);
+      // Stage 8: Transforming result - 80%
+      await job.updateProgress(80);
+      console.log(`[OCR PROGRESS] Job ${job.id}: 80% - Transforming results`);
 
-    // Extract blocks with multi-naming support
-    const blocks = apiResult.blocks || apiResult.content_blocks || apiResult.contentBlocks || apiResult.res || [];
+      // Extract blocks with multi-naming support
+      const blocks = apiResult.blocks || apiResult.content_blocks || apiResult.contentBlocks || apiResult.res || [];
 
-    // Extract markdown with multi-naming support
-    let layoutMarkdown = apiResult.layout_markdown ||
-      apiResult.layoutMarkdown ||
-      apiResult.markdown ||
-      apiResult.latex ||
-      apiResult.content ||
-      apiResult.text || '';
+      // Extract markdown with multi-naming support
+      let layoutMarkdown = apiResult.layout_markdown ||
+        apiResult.layoutMarkdown ||
+        apiResult.markdown ||
+        apiResult.latex ||
+        apiResult.content ||
+        apiResult.text || '';
 
-    // If no markdown but we have blocks, try to combine them as a fallback
-    if (!layoutMarkdown && Array.isArray(blocks) && blocks.length > 0) {
-      layoutMarkdown = blocks
-        .map((b: any) => b.latex || b.content || '')
-        .filter(Boolean)
-        .join('\n\n');
-    }
+      // If no markdown but we have blocks, try to combine them as a fallback
+      if (!layoutMarkdown && Array.isArray(blocks) && blocks.length > 0) {
+        layoutMarkdown = blocks
+          .map((b: any) => b.latex || b.content || '')
+          .filter(Boolean)
+          .join('\n\n');
+      }
 
-    // Transform API response to our format with fallbacks for different naming conventions
-    const result: OcrJobResult = {
-      success: true,
-      blocks: Array.isArray(blocks) ? blocks : [],
-      layoutMarkdown,
-      qualityScore: apiResult.quality_score || apiResult.qualityScore || apiResult.score || 0,
-      processingTime: apiResult.processing_time_ms || apiResult.processingTime || apiResult.time || 0,
-      imageInfo: apiResult.image_info || apiResult.imageInfo || { width: 0, height: 0, format: '' },
-      warnings: apiResult.warnings || [],
+      // Transform API response to our format with fallbacks for different naming conventions
+      return {
+        success: true,
+        blocks: Array.isArray(blocks) ? blocks : [],
+        layoutMarkdown,
+        qualityScore: apiResult.quality_score || apiResult.qualityScore || apiResult.score || 0,
+        processingTime: apiResult.processing_time_ms || apiResult.processingTime || apiResult.time || 0,
+        imageInfo: apiResult.image_info || apiResult.imageInfo || { width: 0, height: 0, format: '' },
+        warnings: apiResult.warnings || [],
+      };
     };
+
+    const strategySequence = buildStrategySequence(data.strategy);
+    let bestResult: OcrJobResult | null = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    let lastError: Error | null = null;
+
+    for (const strategy of strategySequence) {
+      try {
+        const attemptResult = await callOcr(strategy);
+        const attemptScore = scoreResult(attemptResult);
+        if (!bestResult || attemptScore > bestScore) {
+          bestResult = attemptResult;
+          bestScore = attemptScore;
+        }
+
+        if (attemptResult.qualityScore >= 0.8 || attemptScore >= 90) {
+          console.log(`[OCR] Early exit after strategy ${strategy} (score: ${attemptScore})`);
+          break;
+        }
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`[OCR] Strategy ${strategy} failed, trying fallback...`, lastError?.message);
+      }
+    }
+
+    if (!bestResult) {
+      throw lastError || new Error('OCR processing failed');
+    }
 
     // Stage 9: Finalizing - 90%
     await job.updateProgress(90);
-    console.log(`📊 [OCR PROGRESS] Job ${job.id}: 90% - Finalizing results`);
+    console.log(`[OCR PROGRESS] Job ${job.id}: 90% - Finalizing results`);
 
     // Stage 10: Complete - 100%
     await job.updateProgress(100);
-    console.log(`📊 [OCR PROGRESS] Job ${job.id}: 100% - Job completed successfully!`);
+    console.log(`[OCR PROGRESS] Job ${job.id}: 100% - Job completed successfully`);
 
     workerLogger.info(`OCR job completed: ${job.id}`, {
       fileName: data.fileName,
-      blocksCount: result.blocks.length,
-      processingTime: result.processingTime,
+      blocksCount: bestResult.blocks.length,
+      processingTime: bestResult.processingTime,
     });
 
-    // Log the result before returning for debugging
-    console.log(`🎯 [OCR WORKER] Returning result for Job ${job.id}:`, JSON.stringify(result, null, 2));
+    console.log(`[OCR WORKER] Returning result for Job ${job.id}:`, JSON.stringify(bestResult, null, 2));
 
-    return result;
+    return bestResult;
 
   } catch (error) {
     // Handle axios errors specifically
@@ -214,7 +256,7 @@ export function startOcrWorker(): Worker<OcrJobData, OcrJobResult, OcrJobType> {
 
   // Worker event handlers
   ocrWorker.on('active', (job: Job<OcrJobData, OcrJobResult, OcrJobType>) => {
-    console.log(`🔍 [OCR WORKER] Job Started:`, {
+    console.log(`[OCR WORKER] Job Started:`, {
       jobId: job.id,
       fileName: job.data.fileName,
       strategy: job.data.strategy,
@@ -223,7 +265,7 @@ export function startOcrWorker(): Worker<OcrJobData, OcrJobResult, OcrJobType> {
   });
 
   ocrWorker.on('completed', (job: Job<OcrJobData, OcrJobResult, OcrJobType>) => {
-    console.log(`✅ [OCR WORKER] Job Completed:`, {
+    console.log(`[OCR WORKER] Job Completed:`, {
       jobId: job.id,
       fileName: job.data.fileName,
       timestamp: new Date().toISOString(),
@@ -232,7 +274,7 @@ export function startOcrWorker(): Worker<OcrJobData, OcrJobResult, OcrJobType> {
   });
 
   ocrWorker.on('failed', (job: Job<OcrJobData, OcrJobResult, OcrJobType> | undefined, error: Error) => {
-    console.log(`❌ [OCR WORKER] Job Failed:`, {
+    console.log(`[OCR WORKER] Job Failed:`, {
       jobId: job?.id,
       fileName: job?.data.fileName,
       error: error.message,
@@ -242,16 +284,16 @@ export function startOcrWorker(): Worker<OcrJobData, OcrJobResult, OcrJobType> {
   });
 
   ocrWorker.on('error', (error: Error) => {
-    console.log(`🔥 [OCR WORKER] Error:`, error.message);
+    console.log(`[OCR WORKER] Error:`, error.message);
     workerLogger.error('OCR worker error:', error);
   });
 
   ocrWorker.on('stalled', (jobId: string) => {
-    console.log(`⚠️ [OCR WORKER] Job Stalled:`, { jobId });
+    console.log(`[OCR WORKER] Job Stalled:`, { jobId });
     workerLogger.warn(`OCR job stalled: ${jobId}`);
   });
 
-  workerLogger.info('🔍 OCR worker started');
+  workerLogger.info('OCR worker started');
 
   return ocrWorker;
 }
