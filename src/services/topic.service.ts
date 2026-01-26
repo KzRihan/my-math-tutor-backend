@@ -231,7 +231,7 @@ export class TopicService implements ITopicService {
                         'Content-Type': 'application/json',
                         'accept': 'application/json',
                     },
-                    timeout: 60000, // 60 second timeout
+                    timeout: 180000, // 180 second timeout
                 }
             );
 
@@ -322,13 +322,14 @@ export class TopicService implements ITopicService {
                     difficulty_level: data.difficulty_level,
                     exercises_count: data.exercises_count,
                     quiz_count: data.quiz_count,
+                    generate_images: data.generate_images,
                 },
                 {
                     headers: {
                         'Content-Type': 'application/json',
                         'accept': 'application/json',
                     },
-                    timeout: 120000, // 120 second timeout for content generation
+                    timeout: 240000, // 240 second timeout for content generation
                     responseType: 'text', // Get raw response to handle malformed JSON
                 }
             );

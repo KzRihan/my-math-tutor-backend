@@ -156,8 +156,6 @@ export const updateUserSchema = z
         level: z.number().min(1).optional(),
         learnLevel: z.enum([LearnLevel.PRIMARY, LearnLevel.SECONDARY, LearnLevel.COLLEGE]).optional(),
         xpPoints: z.number().min(0).optional(),
-        currentStreak: z.number().min(0).optional(),
-        longestStreak: z.number().min(0).optional(),
         problemsSolved: z.number().min(0).optional(),
         totalMinutesLearned: z.number().min(0).optional(),
         accuracy: z.number().min(0).max(1).optional(),

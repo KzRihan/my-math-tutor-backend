@@ -7,7 +7,7 @@
 import { injectable, inject } from 'tsyringe';
 import { AchievementRepository } from '@repositories/achievement.repository';
 import { UserRepository } from '@repositories/user.repository';
-import { IAchievementDTO, AchievementType } from '@domain/interfaces/achievement.interface';
+import { IAchievementDTO, AchievementMetric, AchievementType } from '@domain/interfaces/achievement.interface';
 import { createChildLogger } from '@utils/logger';
 
 const achievementLogger = createChildLogger('achievement-service');
@@ -28,62 +28,14 @@ export class AchievementService {
       throw new Error('User not found');
     }
 
-    const currentStreak = user.currentStreak || 0;
-    return this.achievementRepository.getUserAchievementsWithProgress(userId, currentStreak);
-  }
+    const stats = {
+      problemsSolved: user.problemsSolved || 0,
+      totalMinutesLearned: user.totalMinutesLearned || 0,
+      totalTopicsCompleted: user.totalTopicsCompleted || 0,
+      xpPoints: user.xpPoints || 0,
+    };
 
-  /**
-   * Check and unlock achievements based on current streak
-   * Called when user's streak is updated
-   */
-  async checkAndUnlockAchievements(userId: string, currentStreak: number): Promise<IAchievementDTO[]> {
-    achievementLogger.debug('Checking achievements for user', { userId, currentStreak });
-
-    const allAchievements = await this.achievementRepository.getAllAchievements();
-    const unlockedAchievements: IAchievementDTO[] = [];
-
-    for (const achievement of allAchievements) {
-      // Check if user has already unlocked this achievement
-      const hasUnlocked = await this.achievementRepository.hasUnlockedAchievement(
-        userId,
-        achievement._id.toString()
-      );
-
-      // If not unlocked and streak requirement is met
-      if (!hasUnlocked && currentStreak >= achievement.requiredStreak) {
-        // Unlock the achievement
-        await this.achievementRepository.unlockAchievement(
-          userId,
-          achievement._id.toString()
-        );
-
-        // Award XP to user
-        await this.userRepository.updateById(userId, {
-          $inc: { xpPoints: achievement.xpReward },
-        });
-
-        achievementLogger.info('Achievement unlocked', {
-          userId,
-          achievementType: achievement.type,
-          xpReward: achievement.xpReward,
-        });
-
-        unlockedAchievements.push({
-          id: achievement._id.toString(),
-          type: achievement.type as AchievementType,
-          title: achievement.title,
-          description: achievement.description,
-          icon: achievement.icon,
-          requiredStreak: achievement.requiredStreak,
-          xpReward: achievement.xpReward,
-          unlocked: true,
-          unlockedAt: new Date(),
-          progress: 1,
-        });
-      }
-    }
-
-    return unlockedAchievements;
+    return this.achievementRepository.getUserAchievementsWithProgress(userId, stats);
   }
 
   /**
@@ -94,33 +46,37 @@ export class AchievementService {
       {
         type: AchievementType.FIRST_STEPS,
         title: 'First Steps',
-        description: 'Complete a 3 day streak',
-        icon: '🎯',
-        requiredStreak: 3,
+        description: 'Solve your first problem',
+        icon: '*',
+        metric: AchievementMetric.PROBLEMS_SOLVED,
+        requiredValue: 1,
         xpReward: 50,
       },
       {
         type: AchievementType.WEEK_WARRIOR,
         title: 'Week Warrior',
-        description: 'Complete a 7 day streak',
-        icon: '🔥',
-        requiredStreak: 7,
+        description: 'Study for 120 minutes total',
+        icon: 'W',
+        metric: AchievementMetric.TOTAL_MINUTES,
+        requiredValue: 120,
         xpReward: 100,
       },
       {
         type: AchievementType.PROBLEM_SOLVER,
         title: 'Problem Solver',
-        description: 'Complete a 30 day streak',
-        icon: '🧩',
-        requiredStreak: 30,
+        description: 'Solve 100 problems',
+        icon: 'P',
+        metric: AchievementMetric.PROBLEMS_SOLVED,
+        requiredValue: 100,
         xpReward: 200,
       },
       {
         type: AchievementType.MATH_MASTER,
         title: 'Math Master',
-        description: 'Complete a 90 day streak',
-        icon: '🏆',
-        requiredStreak: 90,
+        description: 'Complete 5 topics',
+        icon: 'M',
+        metric: AchievementMetric.TOPICS_COMPLETED,
+        requiredValue: 5,
         xpReward: 500,
       },
     ];
@@ -130,8 +86,21 @@ export class AchievementService {
       if (!existing) {
         await this.achievementRepository.create(achievementData);
         achievementLogger.info('Created achievement', { type: achievementData.type });
+        continue;
       }
+
+      await this.achievementRepository.updateById(existing._id.toString(), {
+        $set: {
+          title: achievementData.title,
+          description: achievementData.description,
+          icon: achievementData.icon,
+          metric: achievementData.metric,
+          requiredValue: achievementData.requiredValue,
+          xpReward: achievementData.xpReward,
+        },
+      });
     }
   }
 }
 
+export default AchievementService;

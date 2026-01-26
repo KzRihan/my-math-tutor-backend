@@ -89,16 +89,6 @@ export function createUserRoutes(): Router {
   );
 
   /**
-   * POST /users/me/mark-streak-popup
-   * Mark streak popup as displayed
-   */
-  router.post(
-    '/me/mark-streak-popup',
-    authenticate,
-    userController.markStreakPopupDisplayed
-  );
-  
-  /**
    * GET /users/me
    * Get current user profile
    */

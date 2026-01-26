@@ -153,6 +153,7 @@ export interface IGenerateLessonContentRequest {
     difficulty_level: DifficultyLevel;
     exercises_count: number;
     quiz_count: number;
+    generate_images?: boolean;
 }
 
 export interface IGenerateLessonContentResponse {

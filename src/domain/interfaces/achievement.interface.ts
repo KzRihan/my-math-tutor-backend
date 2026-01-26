@@ -7,13 +7,23 @@
 import { Types } from 'mongoose';
 
 /**
- * Achievement types based on streak milestones
+ * Achievement types
  */
 export enum AchievementType {
-  FIRST_STEPS = 'first_steps',        // 3 days streak
-  WEEK_WARRIOR = 'week_warrior',      // 7 days streak
-  PROBLEM_SOLVER = 'problem_solver',  // 30 days streak
-  MATH_MASTER = 'math_master',        // 90 days streak
+  FIRST_STEPS = 'first_steps',
+  WEEK_WARRIOR = 'week_warrior',
+  PROBLEM_SOLVER = 'problem_solver',
+  MATH_MASTER = 'math_master',
+}
+
+/**
+ * Achievement metrics
+ */
+export enum AchievementMetric {
+  PROBLEMS_SOLVED = 'problems_solved',
+  TOTAL_MINUTES = 'total_minutes',
+  TOPICS_COMPLETED = 'topics_completed',
+  XP_POINTS = 'xp_points',
 }
 
 /**
@@ -25,7 +35,8 @@ export interface IAchievement {
   title: string;
   description: string;
   icon: string;
-  requiredStreak: number; // Days required
+  metric: AchievementMetric;
+  requiredValue: number;
   xpReward: number;
   createdAt: Date;
   updatedAt: Date;
@@ -51,7 +62,8 @@ export interface IAchievementDTO {
   title: string;
   description: string;
   icon: string;
-  requiredStreak: number;
+  metric: AchievementMetric;
+  requiredValue: number;
   xpReward: number;
   unlocked: boolean;
   unlockedAt?: Date;

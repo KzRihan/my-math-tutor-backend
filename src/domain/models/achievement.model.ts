@@ -1,11 +1,11 @@
 /**
  * Achievement Mongoose Model
  * 
- * Defines the Achievement schema for streak-based achievements
+ * Defines the Achievement schema
  */
 
 import mongoose, { Schema, Model, HydratedDocument } from 'mongoose';
-import { IAchievement, AchievementType } from '@domain/interfaces/achievement.interface';
+import { IAchievement, AchievementType, AchievementMetric } from '@domain/interfaces/achievement.interface';
 
 /**
  * Achievement document type
@@ -40,7 +40,12 @@ const achievementSchema = new Schema<IAchievement, IAchievementModel>(
       type: String,
       required: true,
     },
-    requiredStreak: {
+    metric: {
+      type: String,
+      enum: Object.values(AchievementMetric),
+      required: true,
+    },
+    requiredValue: {
       type: Number,
       required: true,
       min: 1,

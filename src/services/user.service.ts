@@ -8,8 +8,6 @@
 import { injectable, inject } from 'tsyringe';
 import { UserRepository } from '@repositories/user.repository';
 import { EmailService } from '@services/email.service';
-import { AchievementService } from '@services/achievement.service';
-import { StreakService } from '@services/streak.service';
 import {
   ICreateUser,
   IUpdateUser,
@@ -46,9 +44,7 @@ export interface IUserService {
 export class UserService implements IUserService {
   constructor(
     @inject(UserRepository) private userRepository: UserRepository,
-    @inject(EmailService) private emailService: EmailService,
-    @inject(AchievementService) private achievementService: AchievementService,
-    @inject(StreakService) private streakService: StreakService
+    @inject(EmailService) private emailService: EmailService
   ) { }
 
   /**
@@ -216,46 +212,10 @@ export class UserService implements IUserService {
   }
 
   /**
-   * Update last login and streak
-   * Returns streak change information
-   * Also checks and unlocks achievements based on new streak
+   * Update last login timestamp
    */
-  async updateLastLogin(userId: string): Promise<{ previousStreak: number; newStreak: number; streakIncreased: boolean; popupDisplayedToday: boolean; longestStreak: number }> {
-    const streakInfo = await this.streakService.updateStreak(userId);
-
+  async updateLastLogin(userId: string): Promise<void> {
     await this.userRepository.updateLastLoginAt(userId);
-    await this.userRepository.updateStreakFields(userId, {
-      currentStreak: streakInfo.newStreak,
-      longestStreak: streakInfo.longestStreak,
-      isStreakPopupDisplayed: streakInfo.popupDisplayedToday,
-      streakPopupDisplayedDate: streakInfo.lastPopupDate || null,
-    });
-    
-    // Check and unlock achievements if streak increased
-    if (streakInfo.streakIncreased && streakInfo.newStreak > 0 && this.achievementService) {
-      try {
-        await this.achievementService.checkAndUnlockAchievements(userId, streakInfo.newStreak);
-      } catch (error) {
-        userLogger.warn('Failed to check achievements', { userId, error });
-        // Don't throw - achievement checking is not critical
-      }
-    }
-    
-    return streakInfo;
-  }
-
-  /**
-   * Mark streak popup as displayed
-   */
-  async markStreakPopupDisplayed(userId: string): Promise<void> {
-    await this.streakService.markPopupDisplayed(userId);
-    const streak = await this.streakService.getStreakByUserId(userId);
-    await this.userRepository.updateStreakFields(userId, {
-      currentStreak: streak.currentStreak,
-      longestStreak: streak.longestStreak,
-      isStreakPopupDisplayed: true,
-      streakPopupDisplayedDate: new Date(),
-    });
   }
 
   // ============================================================

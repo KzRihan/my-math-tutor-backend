@@ -6,14 +6,7 @@
  */
 
 import { User } from '@domain/models/user.model';
-import crypto from 'crypto';
-
-// Hash password function (same as in User model)
-function hashPassword(password: string): string {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
-  return `${salt}:${hash}`;
-}
+import { UserRole, UserStatus, SocialLoginProvider } from '@domain/enums/user-status.enum';
 
 export async function createAdminUser() {
   console.log('🔧 Creating Admin User...');
@@ -23,43 +16,35 @@ export async function createAdminUser() {
   const adminPassword = 'admin@mentorai';
   const adminFirstName = 'Admin';
   const adminLastName = 'User';
+  const shouldResetPassword = process.env.NODE_ENV !== 'production';
 
   try {
     // Check if admin already exists
     const existingAdmin = await User.findOne({ email: adminEmail });
     
     if (existingAdmin) {
-      // Update existing user to admin role
-      if (existingAdmin.role !== 'admin') {
-        await User.updateOne(
-          { email: adminEmail },
-          { 
-            $set: { 
-              role: 'admin',
-              status: 'active',
-              emailVerifiedAt: new Date(),
-            } 
-          }
-        );
-        console.log(`✅ User ${adminEmail} updated to admin role`);
-      } else {
-        console.log(`ℹ️  Admin user ${adminEmail} already exists`);
+      existingAdmin.role = UserRole.ADMIN;
+      existingAdmin.status = UserStatus.ACTIVE;
+      existingAdmin.emailVerifiedAt = new Date();
+      existingAdmin.socialLoginProvider = SocialLoginProvider.EMAIL;
+      if (shouldResetPassword) {
+        existingAdmin.password = adminPassword;
       }
+      await existingAdmin.save();
+      console.log(`✅ Admin user ${adminEmail} updated`);
     } else {
-      // Create new admin user
-      const hashedPassword = hashPassword(adminPassword);
-      
+      // Create new admin user (password will be hashed by pre-save hook)
       const adminUser = new User({
         email: adminEmail,
-        password: hashedPassword,
+        password: adminPassword,
         firstName: adminFirstName,
         lastName: adminLastName,
-        role: 'admin',
-        status: 'active',
+        role: UserRole.ADMIN,
+        status: UserStatus.ACTIVE,
         emailVerifiedAt: new Date(),
-        socialLoginProvider: 'email',
+        socialLoginProvider: SocialLoginProvider.EMAIL,
       });
-      
+
       await adminUser.save();
       console.log(`✅ Admin user created: ${adminEmail}`);
     }

@@ -14,7 +14,6 @@ import { TopicRepository } from '@repositories/topic.repository';
 import { EnrollmentRepository } from '@repositories/enrollment.repository';
 import { AchievementRepository } from '@repositories/achievement.repository';
 import { QuestionResponseRepository } from '@repositories/question-response.repository';
-import { StreakRepository } from '@repositories/streak.repository';
 import { LoginActivityRepository } from '@repositories/login-activity.repository';
 import { ActivityLogRepository } from '@repositories/activity-log.repository';
 
@@ -28,7 +27,6 @@ import { EnrollmentService } from '@services/enrollment.service';
 import { AchievementService } from '@services/achievement.service';
 import { XPCalculationService } from '@services/xp-calculation.service';
 import { QuizReviewService } from '@services/quiz-review.service';
-import { StreakService } from '@services/streak.service';
 import { AdminDashboardService } from '@services/admin-dashboard.service';
 import { AdminStudentService } from '@services/admin-student.service';
 import { AdminAnalyticsService } from '@services/admin-analytics.service';
@@ -86,11 +84,6 @@ export function configureContainer(): void {
     lifecycle: Lifecycle.Singleton,
   });
 
-  container.register(StreakRepository, {
-    useClass: StreakRepository,
-  }, {
-    lifecycle: Lifecycle.Singleton,
-  });
 
   container.register(LoginActivityRepository, {
     useClass: LoginActivityRepository,
@@ -162,11 +155,6 @@ export function configureContainer(): void {
     lifecycle: Lifecycle.Singleton,
   });
 
-  container.register(StreakService, {
-    useClass: StreakService,
-  }, {
-    lifecycle: Lifecycle.Singleton,
-  });
 
   container.register(AdminDashboardService, {
     useClass: AdminDashboardService,

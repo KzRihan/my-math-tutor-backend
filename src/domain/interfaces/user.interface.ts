@@ -23,15 +23,11 @@ export interface IUserBase {
   level?: number;
   learnLevel?: LearnLevel;
   xpPoints: number;
-  currentStreak: number;
-  longestStreak: number;
   problemsSolved: number;
   totalMinutesLearned: number;
   accuracy: number;
   totalTopicsCompleted: number;
   weeklyGoal: number;
-  isStreakPopupDisplayed: boolean;
-  streakPopupDisplayedDate?: Date;
 
   // Preferences
   languagePreference: string;
@@ -125,8 +121,6 @@ export interface IUpdateUser {
   level?: number;
   learnLevel?: LearnLevel;
   weeklyGoal?: number;
-  isStreakPopupDisplayed?: boolean;
-  streakPopupDisplayedDate?: Date;
 
   // Preferences
   languagePreference?: string;
@@ -159,15 +153,11 @@ export interface IUserDTO {
   level?: number;
   learnLevel?: LearnLevel;
   xpPoints: number;
-  currentStreak: number;
-  longestStreak: number;
   problemsSolved: number;
   totalMinutesLearned: number;
   accuracy: number;
   totalTopicsCompleted: number;
   weeklyGoal: number;
-  isStreakPopupDisplayed: boolean;
-  streakPopupDisplayedDate?: Date;
 
   // Preferences
   languagePreference: string;

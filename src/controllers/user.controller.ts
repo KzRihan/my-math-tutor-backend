@@ -254,10 +254,10 @@ export class UserController {
 
     controllerLogger.debug('Getting user progress', { userId });
 
-    // Update last login and get streak change info (for dashboard visit)
-    const streakInfo = await this.userService.updateLastLogin(userId);
+    // Update last login timestamp
+    await this.userService.updateLastLogin(userId);
 
-    // Get user data (after streak update)
+    // Get user data (after login update)
     const user = await this.userService.getUserById(userId);
 
     // Get all user enrollments with topic info
@@ -347,18 +347,11 @@ export class UserController {
         email: user.email,
         profileImage: user.profileImage,
       },
-      streakPopup: {
-        // Show popup only once per day, and only when streak increases
-        shouldDisplay: streakInfo.streakIncreased && !streakInfo.popupDisplayedToday,
-        isDisplayed: streakInfo.popupDisplayedToday,
-      },
       stats: {
         totalTopicsCompleted: topicsCompleted,
         problemsSolved: user.problemsSolved || 0,
         totalMinutesLearned: user.totalMinutesLearned || 0,
         averageAccuracy: user.accuracy || 0,
-        currentStreak: streakInfo.newStreak || 0,
-        longestStreak: streakInfo.longestStreak || 0,
         level: level,
         xpPoints: xpPoints,
         levelProgress: levelProgress,
@@ -368,11 +361,6 @@ export class UserController {
         weeklyProgress: weeklyProgress,
         todayMinutes: todayMinutes,
         todayProblems: todayProblems,
-      },
-      streakInfo: {
-        previousStreak: streakInfo.previousStreak,
-        newStreak: streakInfo.newStreak,
-        streakIncreased: streakInfo.streakIncreased,
       },
       enrollments: enrollments.map(e => ({
         id: e.id,
@@ -390,24 +378,6 @@ export class UserController {
     sendSuccess(res, progressData);
   });
 
-  /**
-   * Mark streak popup as displayed
-   * POST /api/v1/users/me/mark-streak-popup
-   */
-  markStreakPopupDisplayed = asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const userId = req.user?.id;
-
-    if (!userId) {
-      sendSuccess(res, null, 'Authentication required');
-      return;
-    }
-
-    controllerLogger.debug('Marking streak popup as displayed', { userId });
-
-    await this.userService.markStreakPopupDisplayed(userId);
-
-    sendSuccess(res, { success: true }, 'Streak popup marked as displayed');
-  });
 }
 
 export default UserController;

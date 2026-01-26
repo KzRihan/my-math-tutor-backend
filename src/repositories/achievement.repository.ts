@@ -8,7 +8,7 @@ import { injectable } from 'tsyringe';
 import { BaseRepository } from './base.repository';
 import { Achievement, AchievementDocument } from '@domain/models/achievement.model';
 import { UserAchievement, UserAchievementDocument } from '@domain/models/user-achievement.model';
-import { IAchievement, IAchievementDTO, AchievementType } from '@domain/interfaces/achievement.interface';
+import { IAchievement, IAchievementDTO, AchievementMetric, AchievementType } from '@domain/interfaces/achievement.interface';
 
 @injectable()
 export class AchievementRepository extends BaseRepository<IAchievement, AchievementDocument> {
@@ -20,7 +20,7 @@ export class AchievementRepository extends BaseRepository<IAchievement, Achievem
    * Get all achievements
    */
   async getAllAchievements(): Promise<AchievementDocument[]> {
-    return this.model.find().sort({ requiredStreak: 1 }).exec();
+    return this.model.find().sort({ requiredValue: 1 }).exec();
   }
 
   /**
@@ -78,7 +78,10 @@ export class AchievementRepository extends BaseRepository<IAchievement, Achievem
   /**
    * Get user achievements with progress
    */
-  async getUserAchievementsWithProgress(userId: string, currentStreak: number): Promise<IAchievementDTO[]> {
+  async getUserAchievementsWithProgress(
+    userId: string,
+    stats: { problemsSolved: number; totalMinutesLearned: number; totalTopicsCompleted: number; xpPoints: number }
+  ): Promise<IAchievementDTO[]> {
     const allAchievements = await this.getAllAchievements();
     const userAchievements = await this.getUserAchievements(userId);
 
@@ -87,8 +90,10 @@ export class AchievementRepository extends BaseRepository<IAchievement, Achievem
     );
 
     return allAchievements.map(achievement => {
-      const isUnlocked = unlockedAchievementIds.has(achievement._id.toString());
-      const progress = Math.min(currentStreak / achievement.requiredStreak, 1);
+      const value = this.getMetricValue(achievement.metric as AchievementMetric, stats);
+      const requiredValue = achievement.requiredValue || 1;
+      const progress = Math.min(value / requiredValue, 1);
+      const isUnlocked = progress >= 1 || unlockedAchievementIds.has(achievement._id.toString());
 
       const userAchievement = userAchievements.find(
         ua => ua.achievementId.toString() === achievement._id.toString()
@@ -100,13 +105,32 @@ export class AchievementRepository extends BaseRepository<IAchievement, Achievem
         title: achievement.title,
         description: achievement.description,
         icon: achievement.icon,
-        requiredStreak: achievement.requiredStreak,
+        metric: achievement.metric as AchievementMetric,
+        requiredValue: achievement.requiredValue,
         xpReward: achievement.xpReward,
         unlocked: isUnlocked,
         unlockedAt: userAchievement?.unlockedAt,
         progress: isUnlocked ? 1 : progress,
       };
     });
+  }
+
+  private getMetricValue(
+    metric: AchievementMetric,
+    stats: { problemsSolved: number; totalMinutesLearned: number; totalTopicsCompleted: number; xpPoints: number }
+  ): number {
+    switch (metric) {
+      case AchievementMetric.PROBLEMS_SOLVED:
+        return stats.problemsSolved;
+      case AchievementMetric.TOTAL_MINUTES:
+        return stats.totalMinutesLearned;
+      case AchievementMetric.TOPICS_COMPLETED:
+        return stats.totalTopicsCompleted;
+      case AchievementMetric.XP_POINTS:
+        return stats.xpPoints;
+      default:
+        return 0;
+    }
   }
 
   /**

@@ -150,35 +150,6 @@ export class UserRepository extends BaseRepository<IUser, UserDocument> {
   }
 
   /**
-   * Update streak fields on user for DTO consistency
-   */
-  async updateStreakFields(
-    userId: string,
-    data: { currentStreak: number; longestStreak: number; isStreakPopupDisplayed: boolean; streakPopupDisplayedDate?: Date | null }
-  ): Promise<void> {
-    await this.updateById(userId, {
-      $set: {
-        currentStreak: data.currentStreak,
-        longestStreak: data.longestStreak,
-        isStreakPopupDisplayed: data.isStreakPopupDisplayed,
-        streakPopupDisplayedDate: data.streakPopupDisplayedDate || null,
-      },
-    });
-  }
-
-  /**
-   * Mark streak popup as displayed
-   */
-  async markStreakPopupDisplayed(userId: string): Promise<void> {
-    await this.updateById(userId, {
-      $set: {
-        isStreakPopupDisplayed: true,
-        streakPopupDisplayedDate: new Date(),
-      },
-    });
-  }
-
-  /**
    * Suspend user account
    */
   async suspendUser(userId: string): Promise<UserDocument | null> {

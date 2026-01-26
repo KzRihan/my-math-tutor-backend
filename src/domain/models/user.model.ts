@@ -173,17 +173,6 @@ const userSchema = new Schema<IUser, IUserModel, IUserMethods>(
             min: 0,
         },
 
-        currentStreak: {
-            type: Number,
-            default: 0,
-            min: 0,
-        },
-
-        longestStreak: {
-            type: Number,
-            default: 0,
-            min: 0,
-        },
 
         problemsSolved: {
             type: Number,
@@ -216,15 +205,6 @@ const userSchema = new Schema<IUser, IUserModel, IUserMethods>(
             min: 0,
         },
 
-        isStreakPopupDisplayed: {
-            type: Boolean,
-            default: false,
-        },
-
-        streakPopupDisplayedDate: {
-            type: Date,
-            default: null,
-        },
 
         // ============================================================
         // Preferences & Settings
@@ -363,15 +343,11 @@ userSchema.methods.toDTO = function (this: UserDocument): IUserDTO {
         level: this.level,
         learnLevel: this.learnLevel,
         xpPoints: this.xpPoints,
-        currentStreak: this.currentStreak,
-        longestStreak: this.longestStreak,
         problemsSolved: this.problemsSolved,
         totalMinutesLearned: this.totalMinutesLearned,
         accuracy: this.accuracy,
         totalTopicsCompleted: this.totalTopicsCompleted,
         weeklyGoal: this.weeklyGoal,
-        isStreakPopupDisplayed: this.isStreakPopupDisplayed,
-        streakPopupDisplayedDate: this.streakPopupDisplayedDate,
         languagePreference: this.languagePreference,
         theme: this.theme,
         notificationSettings: this.notificationSettings,
