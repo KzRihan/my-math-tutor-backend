@@ -296,8 +296,8 @@ export class TopicService implements ITopicService {
         if (!data.topic_title || !data.lesson_title || !data.grade || !data.difficulty_level) {
             throw new ValidationError('Missing required fields: topic_title, lesson_title, grade, difficulty_level');
         }
-        if (data.exercises_count !== undefined && (data.exercises_count < 1 || data.exercises_count > 10)) {
-            throw new ValidationError('exercises_count must be between 1 and 10');
+        if (data.exercises_count !== undefined && (data.exercises_count < 1 || data.exercises_count > 5)) {
+            throw new ValidationError('exercises_count must be between 1 and 5 (AI service limit)');
         }
         if (data.quiz_count !== undefined && (data.quiz_count < 1 || data.quiz_count > 5)) {
             throw new ValidationError('quiz_count must be between 1 and 5 (AI service limit)');
