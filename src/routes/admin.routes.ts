@@ -208,7 +208,7 @@ export function createAdminRoutes(): Router {
     router.post(
         '/topics',
         authenticate,
-        authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+        authorize(UserRole.USER, UserRole.ADMIN, UserRole.SUPER_ADMIN),
         topicController.create
     );
 
@@ -263,7 +263,7 @@ export function createAdminRoutes(): Router {
     router.post(
         '/topics/generate-lessons',
         authenticate,
-        authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+        authorize(UserRole.USER, UserRole.ADMIN, UserRole.SUPER_ADMIN),
         topicController.generateLessons
     );
 
@@ -274,7 +274,7 @@ export function createAdminRoutes(): Router {
     router.post(
         '/topics/generate-lesson-content',
         authenticate,
-        authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+        authorize(UserRole.USER, UserRole.ADMIN, UserRole.SUPER_ADMIN),
         topicController.generateLessonContent
     );
 
@@ -285,7 +285,7 @@ export function createAdminRoutes(): Router {
     router.post(
         '/topics/:topicId/lessons',
         authenticate,
-        authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+        authorize(UserRole.USER, UserRole.ADMIN, UserRole.SUPER_ADMIN),
         topicController.saveLessons
     );
 
@@ -296,7 +296,7 @@ export function createAdminRoutes(): Router {
     router.post(
         '/topics/:topicId/lessons/:lessonId/content',
         authenticate,
-        authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+        authorize(UserRole.USER, UserRole.ADMIN, UserRole.SUPER_ADMIN),
         topicController.saveLessonContent
     );
 
