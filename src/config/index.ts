@@ -78,13 +78,13 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
 
   // OCR Service
-  OCR_API_URL: z.string().url().default('http://192.168.0.148:8501/ocr'),
+  OCR_API_URL: z.string().url().default('http://localhost:8501/ocr'),
 
   // Agent Service
-  AGENT_API_URL: z.string().url().default('http://192.168.0.125:8502'),
+  AGENT_API_URL: z.string().url().default('http://localhost:8502'),
 
   // AI Service (for topic and lesson generation)
-  AI_SERVICE_URL: z.string().url().default('http://192.168.0.125:8503'),
+  AI_SERVICE_URL: z.string().url().default('http://localhost:8503'),
 
   // Google OAuth
   GOOGLE_CLIENT_ID: z.string().optional(),

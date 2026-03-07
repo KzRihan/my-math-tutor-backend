@@ -258,6 +258,18 @@ export class TopicService implements ITopicService {
             return response.data;
         } catch (error) {
             if (axios.isAxiosError(error)) {
+                if (!error.response) {
+                    topicLogger.error('AI service unreachable', {
+                        endpoint: `${AI_SERVICE_URL}/generate-lessons`,
+                        error: error.message,
+                    });
+                    throw new Error(
+                        `AI service is unreachable at ${AI_SERVICE_URL}. ` +
+                        `Start the math-syllabus-service on port 8503 or set AI_SERVICE_URL correctly. ` +
+                        `Original error: ${error.message}`
+                    );
+                }
+
                 const errorData = error.response?.data;
                 
                 // Extract detailed error message from FastAPI validation errors
@@ -473,6 +485,18 @@ export class TopicService implements ITopicService {
             }
 
             if (axios.isAxiosError(error)) {
+                if (!error.response) {
+                    topicLogger.error('AI service unreachable', {
+                        endpoint: `${AI_SERVICE_URL}/generate-lesson-content`,
+                        error: error.message,
+                    });
+                    throw new Error(
+                        `AI service is unreachable at ${AI_SERVICE_URL}. ` +
+                        `Start the math-syllabus-service on port 8503 or set AI_SERVICE_URL correctly. ` +
+                        `Original error: ${error.message}`
+                    );
+                }
+
                 const errorData = error.response?.data;
                 const status = error.response?.status;
                 

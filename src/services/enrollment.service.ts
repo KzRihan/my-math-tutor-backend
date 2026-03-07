@@ -53,7 +53,7 @@ export class EnrollmentService implements IEnrollmentService {
      * Enroll user in a topic
      */
     async enrollUser(data: ICreateEnrollment): Promise<IEnrollmentDTO> {
-        // Get user to check learnLevel
+        // Ensure user exists
         const user = await this.userRepository.findById(data.userId);
         if (!user) {
             throw new NotFoundError(`User with ID ${data.userId} not found`);
@@ -68,15 +68,6 @@ export class EnrollmentService implements IEnrollmentService {
         const topicOwnerId = (topic as any).createdBy?.toString?.() || (topic as any).createdBy;
         if (topicOwnerId && topicOwnerId !== data.userId) {
             throw new ForbiddenError('You do not have access to enroll in this topic');
-        }
-
-        // Check if user's learnLevel matches topic's gradeBand
-        // Users can only enroll in topics matching their learnLevel
-        // Convert to string for comparison since they are different enum types
-        if (user.learnLevel && topic.gradeBand && String(user.learnLevel) !== String(topic.gradeBand)) {
-            throw new ConflictError(
-                `You can only enroll in ${user.learnLevel} level topics. This topic is for ${topic.gradeBand} level.`
-            );
         }
 
         // Check if already enrolled
