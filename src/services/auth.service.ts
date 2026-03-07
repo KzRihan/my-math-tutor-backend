@@ -12,6 +12,7 @@ import { UserRepository } from '@repositories/user.repository';
 import { EmailService } from '@services/email.service';
 import { LoginActivityService } from '@services/login-activity.service';
 import { SettingsService } from '@services/settings.service';
+import { config } from '@config/index';
 import {
   IUserDTO,
 } from '@domain/interfaces/user.interface';
@@ -102,12 +103,31 @@ export class AuthService implements IAuthService {
     const verificationToken = user.createEmailVerificationToken();
     await user.save();
 
-    // Send verification email
-    const verifyLink = this.generateVerificationLink(verificationToken);
-    await this.emailService.sendVerification(user.email, verifyLink);
+    const hasEmailConfig = Boolean(config.email.user && config.email.pass);
 
-    // Send welcome email
-    await this.emailService.sendWelcome(user.email, user.getFullName());
+    if (hasEmailConfig) {
+      // Send verification email
+      const verifyLink = this.generateVerificationLink(verificationToken);
+      await this.emailService.sendVerification(user.email, verifyLink);
+
+      // Send welcome email
+      await this.emailService.sendWelcome(user.email, user.getFullName());
+    } else if (config.app.isDevelopment) {
+      authLogger.warn('SMTP is not configured in development. Auto-verifying user.', {
+        userId: user._id,
+        email: user.email,
+      });
+
+      user.emailVerifiedAt = new Date();
+      user.status = UserStatus.ACTIVE;
+      user.emailVerificationToken = undefined;
+      user.emailVerificationExpires = undefined;
+      await user.save();
+    } else {
+      throw new BadRequestError(
+        'Email service is not configured. Please set SMTP_EMAIL/SMTP_USER and SMTP_PASSWORD/SMTP_PASS.'
+      );
+    }
 
     authLogger.info('User signup completed', { userId: user._id });
 
