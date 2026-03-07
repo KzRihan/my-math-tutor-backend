@@ -47,6 +47,7 @@ export interface ITopicService {
     generateLessonContent(data: IGenerateLessonContentRequest): Promise<IGenerateLessonContentResponse>;
     saveLessonsToTopic(topicId: string, lessons: string[]): Promise<ITopicDTO>;
     saveLessonContent(topicId: string, lessonId: string, content: any): Promise<ITopicDTO>;
+    canUserManageTopic(topicId: string, userId: string): Promise<boolean>;
 }
 
 /**
@@ -64,16 +65,24 @@ export class TopicService implements ITopicService {
     async createTopic(data: ICreateTopic): Promise<ITopicDTO> {
         topicLogger.info('Creating new topic', { title: data.title });
 
-        // Check for duplicate topic (same title, gradeBand, and difficulty)
-        const existingTopic = await this.topicRepository.findOne({
+        // Check for duplicate topic in the same ownership scope
+        const duplicateFilter: any = {
             title: data.title,
             gradeBand: data.gradeBand,
             difficulty: data.difficulty,
-        });
+        };
+
+        if (data.createdBy) {
+            duplicateFilter.createdBy = data.createdBy;
+        } else {
+            duplicateFilter.$or = [{ createdBy: null }, { createdBy: { $exists: false } }];
+        }
+
+        const existingTopic = await this.topicRepository.findOne(duplicateFilter);
 
         if (existingTopic) {
             throw new ConflictError(
-                `A topic with title "${data.title}" for ${data.gradeBand} grade with ${data.difficulty} difficulty already exists. Please use a different title or update the existing topic.`
+                `A topic with title "${data.title}" for ${data.gradeBand} grade with ${data.difficulty} difficulty already exists in your topic list. Please use a different title or update the existing topic.`
             );
         }
 
@@ -165,10 +174,11 @@ export class TopicService implements ITopicService {
     /**
      * Get published topics for users (public endpoint)
      */
-    async getPublishedTopics(query: ITopicQuery): Promise<PaginatedResult<ITopicDTO>> {
+    async getPublishedTopics(query: ITopicQuery, viewerUserId?: string): Promise<PaginatedResult<ITopicDTO>> {
         const userQuery: ITopicQuery = {
             ...query,
             status: TopicStatus.PUBLISHED, // Only published topics
+            viewerUserId,
         };
         
         const result = await this.topicRepository.findTopics(userQuery);
@@ -182,7 +192,7 @@ export class TopicService implements ITopicService {
     /**
      * Get published topic by ID (public endpoint)
      */
-    async getPublishedTopicById(id: string): Promise<ITopicDTO> {
+    async getPublishedTopicById(id: string, viewerUserId?: string): Promise<ITopicDTO> {
         const topic = await this.topicRepository.findById(id);
         
         if (!topic) {
@@ -191,6 +201,14 @@ export class TopicService implements ITopicService {
 
         // Only return if published
         if (topic.status !== TopicStatus.PUBLISHED) {
+            throw new NotFoundError(`Topic with ID ${id} not found`);
+        }
+
+        // Global topic or owner-only visibility for user-generated content
+        const createdBy = (topic as any).createdBy?.toString?.() || (topic as any).createdBy;
+        const isGlobalTopic = !createdBy;
+        const isOwner = viewerUserId && createdBy === viewerUserId;
+        if (!isGlobalTopic && !isOwner) {
             throw new NotFoundError(`Topic with ID ${id} not found`);
         }
 
@@ -642,6 +660,21 @@ export class TopicService implements ITopicService {
         }
 
         return (updatedTopic as any).toDTO();
+    }
+
+    /**
+     * Check whether a user can modify topic content
+     * - Admin checks are handled at route middleware
+     * - For USER role, they can only manage topics they created
+     */
+    async canUserManageTopic(topicId: string, userId: string): Promise<boolean> {
+        const topic = await this.topicRepository.findById(topicId);
+        if (!topic) {
+            return false;
+        }
+
+        const createdBy = (topic as any).createdBy?.toString?.() || (topic as any).createdBy;
+        return Boolean(createdBy && createdBy === userId);
     }
 }
 

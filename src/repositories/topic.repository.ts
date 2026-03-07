@@ -54,25 +54,49 @@ export class TopicRepository extends BaseRepository<ITopic, TopicDocument> {
             gradeBand,
             sortBy = 'createdAt',
             sortOrder = 'desc',
+            viewerUserId,
         } = query;
 
-        // Build filter
-        const filter: FilterQuery<ITopic> = {};
+        // Build filter using AND conditions to avoid $or conflicts
+        const andConditions: FilterQuery<ITopic>[] = [];
 
         if (status) {
-            filter.status = status;
+            andConditions.push({ status });
         }
 
         if (gradeBand) {
-            filter.gradeBand = gradeBand;
+            andConditions.push({ gradeBand });
         }
 
         if (search) {
-            filter.$or = [
-                { title: { $regex: search, $options: 'i' } },
-                { subtitle: { $regex: search, $options: 'i' } },
-            ];
+            andConditions.push({
+                $or: [
+                    { title: { $regex: search, $options: 'i' } },
+                    { subtitle: { $regex: search, $options: 'i' } },
+                ],
+            });
         }
+
+        // Published topic visibility:
+        // - global topics (createdBy is null/missing) are visible to everyone
+        // - user-generated topics are visible only to their owner
+        if (status === TopicStatus.PUBLISHED) {
+            const visibilityFilter: FilterQuery<ITopic> = {
+                $or: [
+                    { createdBy: null },
+                    { createdBy: { $exists: false } },
+                ],
+            };
+
+            if (viewerUserId) {
+                visibilityFilter.$or?.push({ createdBy: viewerUserId } as any);
+            }
+
+            andConditions.push(visibilityFilter);
+        }
+
+        const filter: FilterQuery<ITopic> =
+            andConditions.length > 0 ? { $and: andConditions } : {};
 
         const paginationOptions: PaginationOptions = {
             page,

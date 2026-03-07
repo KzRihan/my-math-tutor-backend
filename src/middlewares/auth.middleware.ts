@@ -133,13 +133,13 @@ export const optionalAuth: RequestHandler = async (
     const token = authHeader.split(' ')[1];
 
     if (token) {
-      // TODO: Verify token and attach user
-      // try {
-      //   const decoded = jwt.verify(token, config.jwt.secret);
-      //   req.user = await userService.getUserById(decoded.userId);
-      // } catch {
-      //   // Token invalid, but that's OK for optional auth
-      // }
+      try {
+        const decoded = verifyAccessToken(token);
+        const userService = container.resolve(UserService);
+        req.user = await userService.getUserById(decoded.userId);
+      } catch {
+        // Token invalid or user missing - ignore for optional auth
+      }
     }
   }
 

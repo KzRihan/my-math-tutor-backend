@@ -11,6 +11,7 @@ import { container } from 'tsyringe';
 import { TopicService } from '@services/topic.service';
 import { asyncHandler } from '@utils/async-handler';
 import { sendSuccess, sendCreated, sendError, sendPaginated, calculatePagination } from '@utils/response';
+import { UserRole } from '@domain/enums/user-status.enum';
 import {
     ICreateTopic,
     IUpdateTopic,
@@ -30,6 +31,12 @@ export class TopicController {
     create = asyncHandler(async (req: Request, res: Response): Promise<void> => {
         const topicService = container.resolve(TopicService);
         const topicData: ICreateTopic = req.body;
+        const authUser = req.user;
+
+        // User-created topics are scoped to their owner.
+        if (authUser?.role === UserRole.USER) {
+            topicData.createdBy = authUser.id;
+        }
 
         const topic = await topicService.createTopic(topicData);
 
@@ -172,6 +179,7 @@ export class TopicController {
      */
     saveLessons = asyncHandler(async (req: Request, res: Response): Promise<void> => {
         const topicService = container.resolve(TopicService);
+        const authUser = req.user;
         const topicIdParam = req.params['topicId'];
         const topicId = Array.isArray(topicIdParam) ? topicIdParam[0] : topicIdParam;
         const { lessons } = req.body;
@@ -186,6 +194,14 @@ export class TopicController {
             return;
         }
 
+        if (authUser?.role === UserRole.USER) {
+            const canManage = await topicService.canUserManageTopic(topicId, authUser.id);
+            if (!canManage) {
+                sendError(res, StatusCodes.FORBIDDEN, 'FORBIDDEN', 'You can only edit topics you created');
+                return;
+            }
+        }
+
         const topic = await topicService.saveLessonsToTopic(topicId, lessons);
 
         sendSuccess(res, topic, 'Lessons saved successfully');
@@ -197,6 +213,7 @@ export class TopicController {
      */
     saveLessonContent = asyncHandler(async (req: Request, res: Response): Promise<void> => {
         const topicService = container.resolve(TopicService);
+        const authUser = req.user;
         const topicIdParam = req.params['topicId'];
         const lessonIdParam = req.params['lessonId'];
         const topicId = Array.isArray(topicIdParam) ? topicIdParam[0] : topicIdParam;
@@ -206,6 +223,14 @@ export class TopicController {
         if (!topicId || !lessonId) {
             sendError(res, StatusCodes.BAD_REQUEST, 'INVALID_ID', 'Topic ID and Lesson ID are required');
             return;
+        }
+
+        if (authUser?.role === UserRole.USER) {
+            const canManage = await topicService.canUserManageTopic(topicId, authUser.id);
+            if (!canManage) {
+                sendError(res, StatusCodes.FORBIDDEN, 'FORBIDDEN', 'You can only edit topics you created');
+                return;
+            }
         }
 
         const topic = await topicService.saveLessonContent(topicId, lessonId, content);

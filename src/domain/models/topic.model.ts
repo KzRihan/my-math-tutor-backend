@@ -83,6 +83,12 @@ const lessonSchema = new Schema<ITopicLesson>(
  */
 const topicSchema = new Schema<ITopic, ITopicModel, {}, ITopicMethods>(
     {
+        createdBy: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+            default: null,
+            index: true,
+        } as any,
         title: {
             type: String,
             required: true,
@@ -167,6 +173,7 @@ topicSchema.index({ title: 'text', subtitle: 'text' });
 topicSchema.index({ status: 1, gradeBand: 1 });
 topicSchema.index({ createdAt: -1 });
 topicSchema.index({ gradeBand: 1, difficulty: 1 });
+topicSchema.index({ createdBy: 1, status: 1 });
 
 // ============================================================
 // Virtual Fields
@@ -186,6 +193,7 @@ topicSchema.virtual('id').get(function (this: TopicDocument) {
 topicSchema.methods.toDTO = function (this: TopicDocument): ITopicDTO {
     return {
         id: this._id.toString(),
+        createdBy: this.createdBy ? this.createdBy.toString() : undefined,
         title: this.title,
         subtitle: this.subtitle,
         gradeBand: this.gradeBand,

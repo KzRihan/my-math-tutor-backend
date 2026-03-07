@@ -62,6 +62,7 @@ export interface ITopicLesson {
 
 export interface ITopic {
     _id?: string;
+    createdBy?: string;
     title: string;
     subtitle?: string;
     gradeBand: GradeBand;
@@ -81,6 +82,7 @@ export interface ITopic {
 }
 
 export interface ICreateTopic {
+    createdBy?: string;
     title: string;
     subtitle?: string;
     gradeBand: GradeBand;
@@ -110,10 +112,12 @@ export interface ITopicQuery {
     gradeBand?: GradeBand;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+    viewerUserId?: string;
 }
 
 export interface ITopicDTO {
     id: string;
+    createdBy?: string;
     title: string;
     subtitle?: string;
     gradeBand: GradeBand;

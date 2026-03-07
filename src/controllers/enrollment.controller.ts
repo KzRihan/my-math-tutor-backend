@@ -103,16 +103,22 @@ export class EnrollmentController {
      */
     update = asyncHandler(async (req: Request, res: Response): Promise<void> => {
         const enrollmentService = container.resolve(EnrollmentService);
+        const userId = (req as any).user?.id || (req as any).user?._id;
         const idParam = req.params['id'];
         const id = Array.isArray(idParam) ? idParam[0] : idParam;
         const updateData: IUpdateEnrollment = req.body;
+
+        if (!userId) {
+            sendError(res, StatusCodes.UNAUTHORIZED, 'UNAUTHORIZED', 'User not authenticated');
+            return;
+        }
 
         if (!id) {
             sendError(res, StatusCodes.BAD_REQUEST, 'INVALID_ID', 'Enrollment ID is required');
             return;
         }
 
-        const enrollment = await enrollmentService.updateEnrollment(id, updateData);
+        const enrollment = await enrollmentService.updateEnrollment(id, userId.toString(), updateData);
 
         sendSuccess(res, enrollment, 'Enrollment updated successfully');
     });
@@ -123,9 +129,15 @@ export class EnrollmentController {
      */
     updateLessonProgress = asyncHandler(async (req: Request, res: Response): Promise<void> => {
         const enrollmentService = container.resolve(EnrollmentService);
+        const userId = (req as any).user?.id || (req as any).user?._id;
         const idParam = req.params['id'];
         const id = Array.isArray(idParam) ? idParam[0] : idParam;
         const progressData: IUpdateLessonProgress = req.body;
+
+        if (!userId) {
+            sendError(res, StatusCodes.UNAUTHORIZED, 'UNAUTHORIZED', 'User not authenticated');
+            return;
+        }
 
         if (!id) {
             sendError(res, StatusCodes.BAD_REQUEST, 'INVALID_ID', 'Enrollment ID is required');
@@ -137,7 +149,7 @@ export class EnrollmentController {
             return;
         }
 
-        const enrollment = await enrollmentService.updateLessonProgress(id, progressData);
+        const enrollment = await enrollmentService.updateLessonProgress(id, userId.toString(), progressData);
 
         sendSuccess(res, enrollment, 'Lesson progress updated successfully');
     });

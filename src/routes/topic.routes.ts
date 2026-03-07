@@ -12,6 +12,7 @@ import { asyncHandler } from '@utils/async-handler';
 import { Request, Response } from 'express';
 import { TopicService } from '@services/topic.service';
 import { ITopicQuery } from '@domain/interfaces/topic.interface';
+import { optionalAuth } from '@middlewares/auth.middleware';
 
 /**
  * Create public topic routes
@@ -20,6 +21,9 @@ import { ITopicQuery } from '@domain/interfaces/topic.interface';
 export function createTopicRoutes(): Router {
     const router = Router();
     const topicService = container.resolve(TopicService);
+
+    // Attach user if access token is provided.
+    router.use(optionalAuth);
 
     /**
      * GET /topics
@@ -38,12 +42,13 @@ export function createTopicRoutes(): Router {
                 sortOrder: (req.query.sortOrder as 'asc' | 'desc') || 'desc',
             };
 
-            const result = await topicService.getPublishedTopics(query);
+            const viewerUserId = req.user?.id;
+            const scopedResult = await topicService.getPublishedTopics(query, viewerUserId);
 
             sendPaginated(
                 res,
-                result.data,
-                calculatePagination(result.page, result.limit, result.total),
+                scopedResult.data,
+                calculatePagination(scopedResult.page, scopedResult.limit, scopedResult.total),
                 'Published topics retrieved successfully'
             );
         })
@@ -70,7 +75,7 @@ export function createTopicRoutes(): Router {
                 return;
             }
 
-            const topic = await topicService.getPublishedTopicById(id);
+            const topic = await topicService.getPublishedTopicById(id, req.user?.id);
 
             sendSuccess(res, topic, 'Topic retrieved successfully');
         })

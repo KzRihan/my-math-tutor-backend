@@ -35,6 +35,16 @@ export class EnrollmentRepository extends BaseRepository<IEnrollment, Enrollment
     }
 
     /**
+     * Find enrollment by ID scoped to a user
+     */
+    async findByIdAndUser(enrollmentId: string, userId: string): Promise<EnrollmentDocument | null> {
+        return this.model.findOne({
+            _id: enrollmentId,
+            userId,
+        }).exec();
+    }
+
+    /**
      * Find all enrollments for a user
      */
     async findByUser(userId: string, status?: string): Promise<EnrollmentDocument[]> {

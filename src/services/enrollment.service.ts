@@ -20,6 +20,7 @@ import {
 import {
     NotFoundError,
     ConflictError,
+    ForbiddenError,
 } from '@utils/errors';
 import { createChildLogger } from '@utils/logger';
 
@@ -32,8 +33,8 @@ export interface IEnrollmentService {
     enrollUser(data: ICreateEnrollment): Promise<IEnrollmentDTO>;
     getUserEnrollment(userId: string, topicId: string): Promise<IEnrollmentDTO | null>;
     getUserEnrollments(userId: string, status?: string): Promise<IEnrollmentWithTopic[]>;
-    updateEnrollment(enrollmentId: string, data: IUpdateEnrollment): Promise<IEnrollmentDTO>;
-    updateLessonProgress(enrollmentId: string, data: IUpdateLessonProgress): Promise<IEnrollmentDTO>;
+    updateEnrollment(enrollmentId: string, userId: string, data: IUpdateEnrollment): Promise<IEnrollmentDTO>;
+    updateLessonProgress(enrollmentId: string, userId: string, data: IUpdateLessonProgress): Promise<IEnrollmentDTO>;
     unenrollUser(userId: string, topicId: string): Promise<void>;
 }
 
@@ -62,6 +63,11 @@ export class EnrollmentService implements IEnrollmentService {
         const topic = await this.topicRepository.findById(data.topicId);
         if (!topic) {
             throw new NotFoundError(`Topic with ID ${data.topicId} not found`);
+        }
+
+        const topicOwnerId = (topic as any).createdBy?.toString?.() || (topic as any).createdBy;
+        if (topicOwnerId && topicOwnerId !== data.userId) {
+            throw new ForbiddenError('You do not have access to enroll in this topic');
         }
 
         // Check if user's learnLevel matches topic's gradeBand
@@ -153,7 +159,12 @@ export class EnrollmentService implements IEnrollmentService {
     /**
      * Update enrollment
      */
-    async updateEnrollment(enrollmentId: string, data: IUpdateEnrollment): Promise<IEnrollmentDTO> {
+    async updateEnrollment(enrollmentId: string, userId: string, data: IUpdateEnrollment): Promise<IEnrollmentDTO> {
+        const ownedEnrollment = await this.enrollmentRepository.findByIdAndUser(enrollmentId, userId);
+        if (!ownedEnrollment) {
+            throw new NotFoundError(`Enrollment with ID ${enrollmentId} not found`);
+        }
+
         const enrollment = await this.enrollmentRepository.updateById(enrollmentId, { $set: data });
         
         if (!enrollment) {
@@ -178,7 +189,12 @@ export class EnrollmentService implements IEnrollmentService {
     /**
      * Update lesson progress
      */
-    async updateLessonProgress(enrollmentId: string, data: IUpdateLessonProgress): Promise<IEnrollmentDTO> {
+    async updateLessonProgress(enrollmentId: string, userId: string, data: IUpdateLessonProgress): Promise<IEnrollmentDTO> {
+        const ownedEnrollment = await this.enrollmentRepository.findByIdAndUser(enrollmentId, userId);
+        if (!ownedEnrollment) {
+            throw new NotFoundError(`Enrollment with ID ${enrollmentId} not found`);
+        }
+
         const enrollment = await this.enrollmentRepository.updateLessonProgress(
             enrollmentId,
             data.lessonId,
@@ -193,7 +209,7 @@ export class EnrollmentService implements IEnrollmentService {
         }
 
         // Update user statistics
-        const userId = enrollment.userId.toString();
+        const enrollmentUserId = enrollment.userId.toString();
         const statsToUpdate: any = {};
         
         if (data.timeSpent) {
@@ -213,7 +229,7 @@ export class EnrollmentService implements IEnrollmentService {
         }
 
         if (Object.keys(statsToUpdate).length > 0) {
-            await this.userRepository.incrementUserStats(userId, statsToUpdate);
+            await this.userRepository.incrementUserStats(enrollmentUserId, statsToUpdate);
         }
 
         enrollmentLogger.info('Lesson progress updated', {
