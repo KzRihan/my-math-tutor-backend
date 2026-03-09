@@ -252,7 +252,7 @@ export function createAdminRoutes(): Router {
     router.delete(
         '/topics/:id',
         authenticate,
-        authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+        authorize(UserRole.USER, UserRole.ADMIN, UserRole.SUPER_ADMIN),
         topicController.delete
     );
 
@@ -298,6 +298,17 @@ export function createAdminRoutes(): Router {
         authenticate,
         authorize(UserRole.USER, UserRole.ADMIN, UserRole.SUPER_ADMIN),
         topicController.saveLessonContent
+    );
+
+    /**
+     * DELETE /admin/topics/:topicId/lessons/:lessonId
+     * Delete lesson from topic
+     */
+    router.delete(
+        '/topics/:topicId/lessons/:lessonId',
+        authenticate,
+        authorize(UserRole.USER, UserRole.ADMIN, UserRole.SUPER_ADMIN),
+        topicController.deleteLesson
     );
 
     /**

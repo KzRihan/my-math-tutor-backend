@@ -43,6 +43,7 @@ export interface ITopicService {
     getTopics(query: ITopicQuery): Promise<PaginatedResult<ITopicDTO>>;
     updateTopic(id: string, data: IUpdateTopic): Promise<ITopicDTO>;
     deleteTopic(id: string): Promise<void>;
+    deleteLessonFromTopic(topicId: string, lessonId: string): Promise<ITopicDTO>;
     generateLessons(data: IGenerateLessonsRequest): Promise<IGenerateLessonsResponse>;
     generateLessonContent(data: IGenerateLessonContentRequest): Promise<IGenerateLessonContentResponse>;
     saveLessonsToTopic(topicId: string, lessons: string[]): Promise<ITopicDTO>;
@@ -139,6 +140,29 @@ export class TopicService implements ITopicService {
         }
 
         await this.topicRepository.deleteById(id);
+    }
+
+    /**
+     * Delete a lesson from a topic
+     */
+    async deleteLessonFromTopic(topicId: string, lessonId: string): Promise<ITopicDTO> {
+        const topic = await this.topicRepository.findById(topicId);
+        if (!topic) {
+            throw new NotFoundError(`Topic with ID ${topicId} not found`);
+        }
+
+        const lesson = (topic.lessons as any[]).find((l: any) => l._id?.toString() === lessonId);
+        if (!lesson) {
+            throw new NotFoundError(`Lesson with ID ${lessonId} not found in topic ${topicId}`);
+        }
+
+        const updatedTopic = await this.topicRepository.deleteLesson(topicId, lessonId);
+        if (!updatedTopic) {
+            throw new NotFoundError(`Topic with ID ${topicId} not found after update`);
+        }
+
+        topicLogger.info('Lesson deleted from topic', { topicId, lessonId });
+        return (updatedTopic as any).toDTO();
     }
 
     /**
@@ -353,13 +377,14 @@ export class TopicService implements ITopicService {
                     exercises_count: data.exercises_count,
                     quiz_count: data.quiz_count,
                     generate_images: data.generate_images,
+                    generate_videos: data.generate_videos,
                 },
                 {
                     headers: {
                         'Content-Type': 'application/json',
                         'accept': 'application/json',
                     },
-                    timeout: 240000, // 240 second timeout for content generation
+                    timeout: 900000, // 15 minutes for LLM + SD media generation on CPU
                     responseType: 'text', // Get raw response to handle malformed JSON
                 }
             );

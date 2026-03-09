@@ -28,21 +28,37 @@ export interface ILesson {
     title: string;
     introduction: string;
     explanation: string;
+    video_url?: string;
     worked_examples: Array<{
         example: string;
         steps: string[];
+        diagram_base64?: string;
+        image_base64?: string;
+        diagram_url?: string;
+        image_url?: string;
+        video_url?: string;
     }>;
     tips: string[];
     common_mistakes: string[];
     practice_exercises: Array<{
         exercise: string;
         answer?: string;
+        diagram_base64?: string;
+        image_base64?: string;
+        diagram_url?: string;
+        image_url?: string;
+        video_url?: string;
     }>;
     quiz: Array<{
         question: string;
         answer?: string;
         correctAnswer?: string;
         solution?: string;
+        diagram_base64?: string;
+        image_base64?: string;
+        diagram_url?: string;
+        image_url?: string;
+        video_url?: string;
     }>;
 }
 
@@ -158,6 +174,7 @@ export interface IGenerateLessonContentRequest {
     exercises_count: number;
     quiz_count: number;
     generate_images?: boolean;
+    generate_videos?: boolean;
 }
 
 export interface IGenerateLessonContentResponse {

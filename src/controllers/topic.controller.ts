@@ -114,6 +114,7 @@ export class TopicController {
      */
     delete = asyncHandler(async (req: Request, res: Response): Promise<void> => {
         const topicService = container.resolve(TopicService);
+        const authUser = req.user;
         const idParam = req.params['id'];
         const id = Array.isArray(idParam) ? idParam[0] : idParam;
 
@@ -122,9 +123,46 @@ export class TopicController {
             return;
         }
 
+        if (authUser?.role === UserRole.USER) {
+            const canManage = await topicService.canUserManageTopic(id, authUser.id);
+            if (!canManage) {
+                sendError(res, StatusCodes.FORBIDDEN, 'FORBIDDEN', 'You can only delete topics you created');
+                return;
+            }
+        }
+
         await topicService.deleteTopic(id);
 
         sendSuccess(res, null, 'Topic deleted successfully');
+    });
+
+    /**
+     * Delete lesson from topic
+     * DELETE /admin/topics/:topicId/lessons/:lessonId
+     */
+    deleteLesson = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+        const topicService = container.resolve(TopicService);
+        const authUser = req.user;
+        const topicIdParam = req.params['topicId'];
+        const lessonIdParam = req.params['lessonId'];
+        const topicId = Array.isArray(topicIdParam) ? topicIdParam[0] : topicIdParam;
+        const lessonId = Array.isArray(lessonIdParam) ? lessonIdParam[0] : lessonIdParam;
+
+        if (!topicId || !lessonId) {
+            sendError(res, StatusCodes.BAD_REQUEST, 'INVALID_ID', 'Topic ID and Lesson ID are required');
+            return;
+        }
+
+        if (authUser?.role === UserRole.USER) {
+            const canManage = await topicService.canUserManageTopic(topicId, authUser.id);
+            if (!canManage) {
+                sendError(res, StatusCodes.FORBIDDEN, 'FORBIDDEN', 'You can only delete lessons from topics you created');
+                return;
+            }
+        }
+
+        const topic = await topicService.deleteLessonFromTopic(topicId, lessonId);
+        sendSuccess(res, topic, 'Lesson deleted successfully');
     });
 
     /**
